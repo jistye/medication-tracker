@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="Medication Tracker" />
+<title>Medication Tracker</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', sans-serif;
+    background: #FAF7F2;
+    color: #3D3527;
+    padding-bottom: 40px;
+  }
+  .header {
+    background: #FFFFFF;
+    border-bottom: 1px solid #EDE6D8;
+    padding: 20px 20px 16px;
+    padding-top: max(20px, env(safe-area-inset-top));
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  .header-top { display: flex; align-items: center; justify-content: space-between; }
+  .brand { display: flex; align-items: center; gap: 8px; }
+  .brand-icon {
+    width: 34px; height: 34px; border-radius: 10px; background: #E8D5B5;
+    display: flex; align-items: center; justify-content: center; font-size: 18px;
+  }
+  h1 { font-size: 18px; font-weight: 800; margin: 0; }
+  .save-status { font-size: 11px; font-weight: 600; }
+  .save-status.saved { color: #7BAE7F; }
+  .icon-btn {
+    background: #F3EDE0; border: none; border-radius: 10px; padding: 8px 10px;
+    cursor: pointer; font-size: 15px;
+  }
+  .icon-btn.active { background: #3D3527; color: #FFF; }
+  .header-actions { display: flex; align-items: center; gap: 6px; }
+  .date-nav {
+    display: flex; align-items: center; justify-content: space-between; margin-top: 16px;
+  }
+  .date-nav button {
+    background: none; border: none; cursor: pointer; padding: 6px; font-size: 20px; color: #8A7D6B;
+  }
+  .date-label { text-align: center; }
+  .date-main { font-size: 16px; font-weight: 700; }
+  .date-today { font-size: 11px; color: #B08D4F; font-weight: 600; margin-top: 2px; }
+  .progress-wrap { margin-top: 14px; }
+  .progress-row { display: flex; justify-content: space-between; font-size: 12px; color: #8A7D6B; margin-bottom: 6px; }
+  .progress-row b { color: #3D3527; }
+  .progress-bg { height: 8px; background: #F0E9DB; border-radius: 4px; overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 4px; transition: width 0.3s; background: #D9B368; }
+  .progress-fill.full { background: #7BAE7F; }
+
+  .banner { margin: 12px 20px 0; padding: 10px 14px; border-radius: 8px; font-size: 13px; line-height: 1.6; }
+  .banner.warn { background: #FFF4DC; color: #8A6D1F; }
+  .banner.error { background: #FCEAEA; color: #B24444; }
+  .banner.info { background: #EAF1FB; color: #385B85; }
+  .banner button { background: none; border: 1px solid currentColor; border-radius: 6px; padding: 4px 10px; font-size: 12px; margin-top: 8px; cursor: pointer; color: inherit; }
+
+  .calendar { background: #FFF; margin: 16px 20px 0; border-radius: 14px; padding: 16px; border: 1px solid #EDE6D8; }
+  .cal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .cal-header button { background: none; border: none; cursor: pointer; font-size: 18px; color: #8A7D6B; }
+  .cal-title { font-size: 14px; font-weight: 700; }
+  .cal-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 4px; }
+  .cal-dow { font-size: 11px; color: #B0A48F; text-align: center; margin-bottom: 6px; }
+  .cal-day {
+    aspect-ratio: 1; border-radius: 8px; border: 1px solid #F0E9DB; background: #FFF;
+    font-size: 12px; color: #3D3527; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  }
+  .cal-day.full { background: #DCEBDC; }
+  .cal-day.partial { background: #F5E8CE; }
+  .cal-day.missed { background: #FBE4E4; }
+  .cal-day.selected { border: 2px solid #3D3527; font-weight: 700; }
+  .cal-legend { display: flex; gap: 12px; margin-top: 12px; font-size: 10px; color: #8A7D6B; flex-wrap: wrap; }
+  .legend-dot { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 4px; vertical-align: middle; }
+
+  .content { padding: 20px 20px 0; }
+  .slot-section { margin-bottom: 20px; }
+  .slot-label { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; font-size: 13px; font-weight: 700; color: #8A7D6B; }
+  .med-list { display: flex; flex-direction: column; gap: 8px; }
+  .med-item {
+    display: flex; align-items: center; gap: 12px; padding: 14px 16px;
+    background: #FFF; border: 1px solid #EDE6D8; border-radius: 12px;
+  }
+  .med-item.checked { background: #F1F7F1; border-color: #CFE6CF; }
+  .med-item.missed { background: #FDF2F2; border-color: #F3D4D4; }
+  .check-circle {
+    width: 28px; height: 28px; border-radius: 50%; border: 2px solid #D9CFB8;
+    background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; font-size: 14px; color: #FFF;
+  }
+  .check-circle.checked { border: none; background: #7BAE7F; }
+  .check-circle.missed { border-color: #E39494; }
+  .med-name-wrap { flex: 1; }
+  .med-name { font-size: 15px; font-weight: 600; }
+  .med-name.checked { color: #5A7D5D; }
+  .missed-badge { display: inline-block; font-size: 10px; background: #E85D5D; color: #FFF; padding: 2px 7px; border-radius: 6px; margin-left: 8px; font-weight: 700; vertical-align: middle; }
+  .remove-btn { background: none; border: none; cursor: pointer; padding: 4px; opacity: 0.4; font-size: 16px; color: #8A7D6B; }
+
+  .empty-state { text-align: center; padding: 40px 0; color: #B0A48F; font-size: 14px; }
+
+  .add-section { padding: 0 20px; }
+  .add-btn {
+    width: 100%; padding: 14px; background: #FFF; border: 1.5px dashed #D9CFB8; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer;
+    color: #8A7D6B; font-size: 14px; font-weight: 600;
+  }
+  .add-form { background: #FFF; border: 1px solid #EDE6D8; border-radius: 12px; padding: 16px; }
+  .add-form input {
+    width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid #EDE6D8; font-size: 14px;
+    margin-bottom: 10px; box-sizing: border-box; outline: none;
+  }
+  .slot-picker { display: flex; gap: 6px; margin-bottom: 12px; }
+  .slot-picker button {
+    flex: 1; padding: 8px 0; border-radius: 8px; border: 1px solid #EDE6D8; background: #FFF;
+    font-size: 13px; font-weight: 600; cursor: pointer; color: #3D3527;
+  }
+  .slot-picker button.active { border: 2px solid #3D3527; background: #F3EDE0; }
+  .add-actions { display: flex; gap: 8px; }
+  .add-actions button {
+    flex: 1; padding: 10px 0; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 14px;
+  }
+  .btn-confirm { background: #3D3527; color: #FFF; }
+  .btn-cancel { background: #F3EDE0; color: #8A7D6B; font-weight: 600; }
+
+  .link-row { display: flex; justify-content: center; gap: 16px; margin-top: 18px; }
+  .link-row button { background: none; border: none; color: #B0A48F; font-size: 12px; text-decoration: underline; cursor: pointer; }
+
+  .panel { margin: 12px 20px 0; background: #FFF; border: 1px solid #EDE6D8; border-radius: 12px; padding: 16px; }
+  .panel h3 { font-size: 13px; color: #8A7D6B; margin: 0 0 10px; }
+  .inactive-item { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid #F3EDE0; font-size: 13px; }
+  .inactive-item:last-child { border-bottom: none; }
+  .inactive-name { flex: 1; color: #8A7D6B; }
+  .inactive-period { font-size: 11px; color: #B0A48F; }
+  .permadelete-btn { background: #FCEAEA; color: #B24444; border: none; border-radius: 6px; padding: 4px 8px; font-size: 11px; cursor: pointer; }
+
+  .time-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #F3EDE0; font-size: 13px; }
+  .time-row:last-child { border-bottom: none; }
+  .time-row input[type="time"] { border: 1px solid #EDE6D8; border-radius: 6px; padding: 4px 8px; font-size: 13px; }
+  .notif-toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; }
+  .toggle-switch { position: relative; width: 42px; height: 24px; }
+  .toggle-switch input { opacity: 0; width: 0; height: 0; }
+  .toggle-slider { position: absolute; cursor: pointer; inset: 0; background: #E0D8C5; border-radius: 24px; transition: 0.2s; }
+  .toggle-slider:before { content: ""; position: absolute; height: 18px; width: 18px; left: 3px; bottom: 3px; background: #FFF; border-radius: 50%; transition: 0.2s; }
+  .toggle-switch input:checked + .toggle-slider { background: #7BAE7F; }
+  .toggle-switch input:checked + .toggle-slider:before { transform: translateX(18px); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-top">
+    <div class="brand">
+      <div class="brand-icon">💊</div>
+      <h1>Medication Tracker</h1>
+    </div>
+    <div class="header-actions">
+      <span id="saveStatus" class="save-status"></span>
+      <button class="icon-btn" id="notifToggleBtn" onclick="toggleNotifPanel()">🔔</button>
+      <button class="icon-btn" id="calToggleBtn" onclick="toggleCalendar()">📅</button>
+    </div>
+  </div>
+  <div class="date-nav">
+    <button onclick="shiftDate(-1)">‹</button>
+    <div class="date-label">
+      <div class="date-main" id="dateMain"></div>
+      <div class="date-today" id="dateToday"></div>
+    </div>
+    <button onclick="shiftDate(1)">›</button>
+  </div>
+  <div class="progress-wrap">
+    <div class="progress-row">
+      <span>오늘의 복용</span>
+      <b id="progressText">0 / 0</b>
+    </div>
+    <div class="progress-bg"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+  </div>
+</div>
+
+<div id="pastDateBanner"></div>
+<div id="notifPanel" class="panel" style="display:none;"></div>
+<div id="calendarView" class="calendar" style="display:none;"></div>
+
+<div class="content">
+  <div id="medListContainer"></div>
+</div>
+
+<div class="add-section">
+  <button class="add-btn" id="addBtnShow" onclick="showAddForm()">＋ 약 추가하기</button>
+  <div class="add-form" id="addForm" style="display:none;">
+    <input type="text" id="newMedName" placeholder="약 이름 (예: 혈압약)" />
+    <div class="slot-picker" id="slotPicker">
+      <button data-slot="morning" class="active" onclick="pickSlot('morning')">아침</button>
+      <button data-slot="afternoon" onclick="pickSlot('afternoon')">점심</button>
+      <button data-slot="evening" onclick="pickSlot('evening')">저녁</button>
+    </div>
+    <div class="add-actions">
+      <button class="btn-confirm" onclick="confirmAddMed()">추가</button>
+      <button class="btn-cancel" onclick="hideAddForm()">취소</button>
+    </div>
+  </div>
+  <div class="link-row">
+    <button onclick="toggleManagePanel()" id="manageLinkBtn">중단한 약 관리</button>
+  </div>
+</div>
+
+<div id="managePanel" class="panel" style="display:none;"></div>
+
+<script>
+// ===== 상수: 시간대별 기본 컷오프 시간 (이 시간이 지나면 "미복용"으로 표시) =====
+let SLOT_CONFIG = loadJSON("slot-config", {
+  morning:   { label: "아침", icon: "🌞", cutoff: "10:00" },
+  afternoon: { label: "점심", icon: "☁️", cutoff: "15:00" },
+  evening:   { label: "저녁", icon: "🌙", cutoff: "21:00" },
+});
+const SLOT_ORDER = ["morning", "afternoon", "evening"];
+
+// ===== 저장소 헬퍼 (독립 웹앱 — localStorage로 실제 영구 저장됨) =====
+function loadJSON(key, fallback) {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : fallback;
+  } catch (e) {
+    return fallback;
+  }
+}
+function saveJSON(key, value) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+// ===== 날짜/시간 유틸 =====
+function todayKey(d = new Date()) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+function nowHHMM() {
+  const d = new Date();
+  return String(d.getHours()).padStart(2,"0") + ":" + String(d.getMinutes()).padStart(2,"0");
+}
+function formatDisplayDate(key) {
+  const d = new Date(key + "T00:00:00");
+  const days = ["일", "월", "화", "수", "목", "금", "토"];
+  return `${d.getMonth() + 1}월 ${d.getDate()}일 (${days[d.getDay()]})`;
+}
+function shiftDate(delta) {
+  const d = new Date(selectedDate + "T00:00:00");
+  d.setDate(d.getDate() + delta);
+  selectedDate = todayKey(d);
+  render();
+}
+
+// ===== 데이터 마이그레이션 =====
+function migrateMeds(list) {
+  return list.map(m => ({
+    ...m,
+    startDate: m.startDate || "2020-01-01",
+    endDate: m.endDate === undefined ? null : m.endDate,
+  }));
+}
+const DEFAULT_MEDS = migrateMeds([
+  { id: "m1", name: "고지혈증", slot: "morning" },
+  { id: "m2", name: "비타민", slot: "morning" },
+  { id: "m3", name: "마그네슘", slot: "evening" },
+  { id: "m4", name: "오메가", slot: "evening" },
+]);
+
+let meds = migrateMeds(loadJSON("med-list", DEFAULT_MEDS));
+let logs = loadJSON("med-logs", {});
+let selectedDate = todayKey();
+let newMedSlot = "morning";
+let calMonth = (() => { const d = new Date(); return { y: d.getFullYear(), m: d.getMonth() }; })();
+let managePanelOpen = false;
+let notifPanelOpen = false;
+let notifTimers = [];
+
+function isActiveOn(med, dateKey) {
+  if (dateKey < med.startDate) return false;
+  if (med.endDate && dateKey > med.endDate) return false;
+  return true;
+}
+// 오늘 날짜 + 해당 슬롯의 컷오프 시간이 지났고, 아직 체크 안 했으면 "미복용"
+function isMissed(med, dateKey, dayLog) {
+  if (dateKey !== todayKey()) return false; // 과거/미래는 미복용 표시 대상 아님(과거는 이미 지난 일, 달력에서 별도 표시)
+  if (dayLog[med.id]) return false;
+  const cutoff = SLOT_CONFIG[med.slot]?.cutoff;
+  if (!cutoff) return false;
+  return nowHHMM() >= cutoff;
+}
+
+// ===== 저장 상태 표시 =====
+function showSaveStatus(ok) {
+  const el = document.getElementById("saveStatus");
+  if (ok) {
+    el.textContent = "✓ 저장됨";
+    el.className = "save-status saved";
+    setTimeout(() => { el.textContent = ""; }, 1500);
+  } else {
+    el.textContent = "⚠ 저장 실패";
+    el.className = "save-status";
+    el.style.color = "#C25757";
+  }
+}
+
+// ===== 약 체크 토글 =====
+function toggleCheck(medId) {
+  const dayLog = logs[selectedDate] || {};
+  dayLog[medId] = !dayLog[medId];
+  logs[selectedDate] = dayLog;
+  const ok = saveJSON("med-logs", logs);
+  showSaveStatus(ok);
+  render();
+}
+
+function yesterdayKey() {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  return todayKey(d);
+}
+
+// "삭제" 버튼: 오늘 목록에서 즉시 사라지도록 종료일을 "어제"로 설정.
+// 어제까지의 과거 체크 기록은 그대로 보존됨.
+function deactivateMed(medId) {
+  const med = meds.find(m => m.id === medId);
+  if (!med) return;
+  med.endDate = yesterdayKey();
+  saveJSON("med-list", meds);
+  render();
+}
+function permanentlyDeleteMed(medId) {
+  if (!confirm("이 약을 완전히 삭제하시겠습니까? 관련된 과거 체크 기록도 화면에서 사라집니다.")) return;
+  meds = meds.filter(m => m.id !== medId);
+  saveJSON("med-list", meds);
+  renderManagePanel();
+  render();
+}
+
+// ===== 약 추가 =====
+function showAddForm() {
+  document.getElementById("addBtnShow").style.display = "none";
+  document.getElementById("addForm").style.display = "block";
+}
+function hideAddForm() {
+  document.getElementById("addBtnShow").style.display = "block";
+  document.getElementById("addForm").style.display = "none";
+  document.getElementById("newMedName").value = "";
+}
+function pickSlot(slot) {
+  newMedSlot = slot;
+  document.querySelectorAll("#slotPicker button").forEach(b => {
+    b.classList.toggle("active", b.dataset.slot === slot);
+  });
+}
+function confirmAddMed() {
+  const name = document.getElementById("newMedName").value.trim();
+  if (!name) return;
+  meds.push({ id: "m" + Date.now(), name, slot: newMedSlot, startDate: todayKey(), endDate: null });
+  saveJSON("med-list", meds);
+  hideAddForm();
+  render();
+}
+
+// ===== 중단한 약 관리 =====
+function toggleManagePanel() {
+  managePanelOpen = !managePanelOpen;
+  document.getElementById("managePanel").style.display = managePanelOpen ? "block" : "none";
+  document.getElementById("manageLinkBtn").textContent = managePanelOpen ? "닫기" : "중단한 약 관리";
+  if (managePanelOpen) renderManagePanel();
+}
+function renderManagePanel() {
+  const panel = document.getElementById("managePanel");
+  const inactive = meds.filter(m => m.endDate && m.endDate < todayKey());
+  if (inactive.length === 0) {
+    panel.innerHTML = `<h3>중단한 약 관리</h3><div style="font-size:13px;color:#B0A48F;">중단된 약이 없습니다.</div>`;
+    return;
+  }
+  let html = `<h3>중단한 약 관리</h3>`;
+  inactive.forEach(m => {
+    html += `<div class="inactive-item">
+      <span class="inactive-name">${m.name}<br/><span class="inactive-period">~${m.endDate}까지 복용</span></span>
+      <button class="permadelete-btn" onclick="permanentlyDeleteMed('${m.id}')">완전삭제</button>
+    </div>`;
+  });
+  panel.innerHTML = html;
+}
+
+// ===== 알림 설정 패널 =====
+function toggleNotifPanel() {
+  notifPanelOpen = !notifPanelOpen;
+  document.getElementById("notifPanel").style.display = notifPanelOpen ? "block" : "none";
+  document.getElementById("notifToggleBtn").classList.toggle("active", notifPanelOpen);
+  if (notifPanelOpen) renderNotifPanel();
+}
+function renderNotifPanel() {
+  const panel = document.getElementById("notifPanel");
+  const notifEnabled = loadJSON("notif-enabled", false);
+  const permission = ("Notification" in window) ? Notification.permission : "unsupported";
+
+  let permissionNote = "";
+  if (permission === "unsupported") {
+    permissionNote = `<div class="banner warn" style="margin:0 0 10px;">이 브라우저는 알림 기능을 지원하지 않아요.</div>`;
+  } else if (permission === "denied") {
+    permissionNote = `<div class="banner error" style="margin:0 0 10px;">알림이 차단되어 있어요. 아이폰 설정 → Safari → 알림에서 허용해 주세요.</div>`;
+  }
+
+  let html = `<h3>복용 알림</h3>${permissionNote}`;
+  html += `<div class="notif-toggle-row">
+    <span style="font-size:13px;">알림 켜기</span>
+    <label class="toggle-switch">
+      <input type="checkbox" id="notifEnableCheckbox" ${notifEnabled ? "checked" : ""} onchange="onNotifToggle(this.checked)" />
+      <span class="toggle-slider"></span>
+    </label>
+  </div>`;
+  html += `<div style="font-size:11px;color:#B0A48F;margin-bottom:10px;line-height:1.6;">⚠️ 이 알림은 앱(브라우저 탭)이 열려 있을 때만 작동해요. 아이폰을 완전히 껐다 켜거나 앱을 완전히 종료한 상태에서는 알림이 오지 않을 수 있어요.</div>`;
+
+  SLOT_ORDER.forEach(slotId => {
+    const cfg = SLOT_CONFIG[slotId];
+    html += `<div class="time-row">
+      <span>${cfg.icon} ${cfg.label} 알림 시간</span>
+      <input type="time" value="${cfg.cutoff}" onchange="onCutoffChange('${slotId}', this.value)" />
+    </div>`;
+  });
+
+  panel.innerHTML = html;
+}
+function onNotifToggle(checked) {
+  saveJSON("notif-enabled", checked);
+  if (checked && "Notification" in window && Notification.permission === "default") {
+    Notification.requestPermission().then(() => { renderNotifPanel(); scheduleNotifications(); });
+  } else {
+    scheduleNotifications();
+  }
+}
+function onCutoffChange(slotId, value) {
+  SLOT_CONFIG[slotId].cutoff = value;
+  saveJSON("slot-config", SLOT_CONFIG);
+  scheduleNotifications();
+  render();
+}
+
+// 오늘 남은 시간대에 대해 setTimeout으로 알림 예약 (탭이 열려 있는 동안만 유효)
+function scheduleNotifications() {
+  notifTimers.forEach(t => clearTimeout(t));
+  notifTimers = [];
+  const notifEnabled = loadJSON("notif-enabled", false);
+  if (!notifEnabled || !("Notification" in window) || Notification.permission !== "granted") return;
+
+  const now = new Date();
+  SLOT_ORDER.forEach(slotId => {
+    const cfg = SLOT_CONFIG[slotId];
+    const [h, m] = cfg.cutoff.split(":").map(Number);
+    const target = new Date();
+    target.setHours(h, m, 0, 0);
+    const delay = target.getTime() - now.getTime();
+    if (delay > 0) {
+      const timer = setTimeout(() => {
+        const dayLog = logs[todayKey()] || {};
+        const activeMeds = meds.filter(med => isActiveOn(med, todayKey()) && med.slot === slotId);
+        const unchecked = activeMeds.filter(med => !dayLog[med.id]);
+        if (unchecked.length > 0) {
+          new Notification("약 복용 체크", {
+            body: `${cfg.label} 약(${unchecked.map(m=>m.name).join(", ")})을 아직 체크하지 않았어요.`,
+            icon: undefined,
+          });
+        }
+      }, delay);
+      notifTimers.push(timer);
+    }
+  });
+}
+
+// ===== 달력 =====
+function toggleCalendar() {
+  const cal = document.getElementById("calendarView");
+  const btn = document.getElementById("calToggleBtn");
+  const show = cal.style.display === "none";
+  cal.style.display = show ? "block" : "none";
+  btn.classList.toggle("active", show);
+  if (show) renderCalendar();
+}
+function shiftMonth(delta) {
+  calMonth.m += delta;
+  if (calMonth.m < 0) { calMonth.m = 11; calMonth.y--; }
+  if (calMonth.m > 11) { calMonth.m = 0; calMonth.y++; }
+  renderCalendar();
+}
+function getDayStatus(key) {
+  const activeMeds = meds.filter(m => isActiveOn(m, key));
+  const l = logs[key] || {};
+  const total = activeMeds.length;
+  if (total === 0) return "none";
+  const checked = activeMeds.filter(m => l[m.id]).length;
+  if (checked === 0) return key < todayKey() ? "missed" : "none";
+  if (checked === total) return "full";
+  return "partial";
+}
+function renderCalendar() {
+  const cal = document.getElementById("calendarView");
+  const first = new Date(calMonth.y, calMonth.m, 1);
+  const startDow = first.getDay();
+  const daysInMonth = new Date(calMonth.y, calMonth.m + 1, 0).getDate();
+  const dows = ["일","월","화","수","목","금","토"];
+  let dowRow = dows.map(d => `<div class="cal-dow">${d}</div>`).join("");
+  let dayCells = "";
+  for (let i = 0; i < startDow; i++) dayCells += `<div></div>`;
+  for (let d = 1; d <= daysInMonth; d++) {
+    const key = `${calMonth.y}-${String(calMonth.m+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+    const status = getDayStatus(key);
+    const isSel = key === selectedDate;
+    dayCells += `<div class="cal-day ${status} ${isSel ? "selected" : ""}" onclick="selectFromCalendar('${key}')">${d}</div>`;
+  }
+  cal.innerHTML = `
+    <div class="cal-header">
+      <button onclick="shiftMonth(-1)">‹</button>
+      <div class="cal-title">${calMonth.y}년 ${calMonth.m + 1}월</div>
+      <button onclick="shiftMonth(1)">›</button>
+    </div>
+    <div class="cal-grid">${dowRow}${dayCells}</div>
+    <div class="cal-legend">
+      <div><span class="legend-dot" style="background:#DCEBDC;"></span>모두 복용</div>
+      <div><span class="legend-dot" style="background:#F5E8CE;"></span>일부 복용</div>
+      <div><span class="legend-dot" style="background:#FBE4E4;"></span>미복용</div>
+    </div>
+  `;
+}
+function selectFromCalendar(key) {
+  selectedDate = key;
+  toggleCalendar();
+  render();
+}
+
+// ===== 메인 렌더 =====
+function render() {
+  document.getElementById("dateMain").textContent = formatDisplayDate(selectedDate);
+  const isToday = selectedDate === todayKey();
+  document.getElementById("dateToday").textContent = isToday ? "오늘" : "";
+
+  const bannerEl = document.getElementById("pastDateBanner");
+  if (!isToday) {
+    bannerEl.innerHTML = `<div class="banner info">📌 ${formatDisplayDate(selectedDate)} 기준으로 당시 복용 중이던 약 목록을 보여줍니다.</div>`;
+  } else {
+    bannerEl.innerHTML = "";
+  }
+
+  const activeMeds = meds.filter(m => isActiveOn(m, selectedDate));
+  const dayLog = logs[selectedDate] || {};
+  const total = activeMeds.length;
+  const checkedCount = activeMeds.filter(m => dayLog[m.id]).length;
+  document.getElementById("progressText").textContent = `${checkedCount} / ${total}`;
+  const fill = document.getElementById("progressFill");
+  fill.style.width = total ? `${(checkedCount/total)*100}%` : "0%";
+  fill.classList.toggle("full", total > 0 && checkedCount === total);
+
+  const container = document.getElementById("medListContainer");
+  if (total === 0) {
+    container.innerHTML = `<div class="empty-state">이 날짜에 등록된 약이 없습니다.</div>`;
+    return;
+  }
+  let html = "";
+  SLOT_ORDER.forEach(slotId => {
+    const cfg = SLOT_CONFIG[slotId];
+    const slotMeds = activeMeds.filter(m => m.slot === slotId);
+    if (slotMeds.length === 0) return;
+    html += `<div class="slot-section">
+      <div class="slot-label">${cfg.icon} ${cfg.label} <span style="font-weight:400;color:#C4B8A0;">(${cfg.cutoff}까지)</span></div>
+      <div class="med-list">`;
+    slotMeds.forEach(med => {
+      const checked = !!dayLog[med.id];
+      const missed = isMissed(med, selectedDate, dayLog);
+      html += `
+        <div class="med-item ${checked ? "checked" : ""} ${missed ? "missed" : ""}">
+          <button class="check-circle ${checked ? "checked" : ""} ${missed ? "missed" : ""}" onclick="toggleCheck('${med.id}')">${checked ? "✓" : ""}</button>
+          <span class="med-name-wrap">
+            <span class="med-name ${checked ? "checked" : ""}">${med.name}</span>
+            ${missed ? `<span class="missed-badge">미복용</span>` : ""}
+          </span>
+          <button class="remove-btn" onclick="deactivateMed('${med.id}')" title="중단">✕</button>
+        </div>`;
+    });
+    html += `</div></div>`;
+  });
+  container.innerHTML = html;
+}
+
+render();
+scheduleNotifications();
+// 1분마다 미복용 상태 갱신 (컷오프 시간 지나면 자동으로 배지 표시)
+setInterval(render, 60000);
+</script>
+</body>
+</html>
